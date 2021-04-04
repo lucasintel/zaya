@@ -19,4 +19,19 @@ Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 
 Layout/LineLength:
-  Max: 120
+  Max: 95
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
