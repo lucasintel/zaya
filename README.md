@@ -1,38 +1,169 @@
 # Zaya
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/zaya`. To experiment with that code, run `bin/console` for an interactive prompt.
+Zaya is a simple, minimalist, and unpretentious queue processor for Ruby and
+RabbitMQ, à la Sneakers.
 
-TODO: Delete this and the text above, and describe your gem
+The public API is **not stable**. This is an early draft for now. Expect major
+design changes.
+
+## Minimal example
+
+1. Touch `boot.rb`:
+
+```rb
+require "zaya"
+
+class MinimalWorker
+  include Zaya::Worker
+
+  self.queue_name = "greetings"
+  self.max_priority = 10
+
+  def perform(ctx)
+    puts ctx.payload
+    ctx.ack!
+  end
+end
+```
+
+2. Start up the server:
+
+```sh
+FORMATION="MinimalWorker=5" zaya --require boot.rb
+```
+
+3. Open up an IRB session:
+
+```rb
+require "bunny"
+
+connection = Bunny.new
+connection.start
+
+ch = connection.create_channel
+
+ch.default_exchange.publish("Hello, world", routing_key: "greetings", priority: 10)
+ch.default_exchange.publish("Здравствуй, мир", routing_key: "greetings")
+ch.default_exchange.publish("Witaj, świecie", routing_key: "greetings")
+```
+
+This is the expected output:
+
+```
+      /\ /\
+      ( . .) zaya
+
+      Starting processing, hit Ctrl-C to stop
+
+2021-04-02T18:00:16Z PID-38057 [MinimalWorker-PID:P38057-CID:W26c] up (x5)
+Hello, world
+Здравствуй, мир
+Witaj, świecie
+```
+
+4. Stop the worker:
+
+```bash
+kill -s SIGTERM 38057
+```
+
+Zaya will pause all consumers and wait 25 seconds to allow workers to finish
+off their tasks.
+
+```
+[...]
+2021-04-02T18:00:16Z PID:38057 Received graceful stop
+2021-04-02T18:00:16Z PID:38057 Pausing to allow consumers to finish...
+2021-04-02T18:00:16Z PID:38057 Done
+```
+
+## Middleware-centered
+
+```rb
+class Instrumentation
+  EVENT_NAME = "zaya.perform"
+
+  def call(ctx)
+    # Or dry-monitor, active support notifications, ...
+    Skylight.instrument(title: EVENT_NAME) do
+      yield
+    end
+  end
+end
+
+class Stats
+  PROCESSED_KEY = "zaya:stat:processed"
+  FAILED_KEY = "zaya:stat:failed"
+  TIMESTAMP_FORMAT = "%Y-%m-%dT%H:00Z"
+
+  def call(ctx)
+    yield
+
+    # Might be used to draw a chart of processed tasks per hour,
+    # like the Sidekiq UI.
+    timestamp = Time.new.utc.strftime(TIMESTAMP_FORMAT)
+
+    $redis.multi do |conn|
+      conn.incr(PROCESSED_KEY)
+      conn.incr("#{PROCESSED_KEY}:#{timestamp}")
+      conn.incr(FAILED_KEY) if !ctx.success?
+    end
+  end
+end
+
+class ContentType
+  def call(ctx)
+    # Deserialize the payout (e.g. MessagePack).
+  end
+end
+
+class ExponentialBackoff
+  def call(ctx)
+    # Re-enqueue to a retry exchange.
+  end
+end
+
+Zaya.configure do |config|
+  config.prepend Instrumentation
+  config.use ContentType
+  config.use Stats
+  config.use ExponentialBackoff
+end
+
+class MyWorker
+  include Zaya::Worker
+
+  self.queue_name = "best_effort_scraper"
+
+  def perform(ctx)
+    # ...
+  end
+end
+```
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'zaya'
+gem "zaya"
 ```
 
 And then execute:
 
-    $ bundle install
+```sh
+$ bundle install
+```
 
 Or install it yourself as:
 
-    $ gem install zaya
-
-## Usage
-
-TODO: Write usage instructions here
-
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```sh
+$ gem install zaya
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/zaya.
+Bug reports and pull requests are welcome on GitHub at https://github.com/kandayo/zaya.
 
 ## License
 

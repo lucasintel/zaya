@@ -18,8 +18,11 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir["*.{md,txt}", "{lib}/**/*"]
   spec.require_path = "lib"
+  spec.executables = "zaya"
 
   spec.required_ruby_version = Gem::Requirement.new(">= 2.5.0")
 
-  spec.add_dependency "bunny", "~> 2.14"
+  spec.add_dependency "bunny", "~> 2.17"
+  spec.add_dependency "concurrent-ruby", "~> 1.1"
+  spec.add_dependency "errbase"
 end
