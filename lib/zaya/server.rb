@@ -2,7 +2,7 @@
 
 module Zaya
   class Server
-    BANNER = <<-TXT
+    BANNER = <<~TXT
 
       /\\ /\\
       ( . .) zaya
