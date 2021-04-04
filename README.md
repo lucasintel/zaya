@@ -50,10 +50,10 @@ ch.default_exchange.publish("Witaj, świecie", routing_key: "greetings")
 This is the expected output:
 
 ```
-      /\ /\
-      ( . .) zaya
+/\ /\
+( . .) zaya
 
-      Starting processing, hit Ctrl-C to stop
+Starting processing, hit Ctrl-C to stop
 
 2021-04-02T18:00:16Z PID-38057 [MinimalWorker-PID:P38057-CID:W26c] up (x5)
 Hello, world
@@ -80,11 +80,12 @@ off their tasks.
 ## Middleware-centered
 
 ```rb
+# Naive instrumentation middleware. Use your favorite provider, e.g.
+# dry-monitor, activesupport notifications, and so on.
 class Instrumentation
   EVENT_NAME = "zaya.perform"
 
   def call(ctx)
-    # Or dry-monitor, active support notifications, ...
     Skylight.instrument(title: EVENT_NAME) do
       yield
     end
